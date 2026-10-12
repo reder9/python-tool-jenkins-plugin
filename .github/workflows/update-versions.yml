@@ -42,8 +42,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(catalog): update Python standalone distributions"
-          title: "chore(catalog): update Python standalone distributions"
+          commit-message: "feat(catalog): update Python standalone distributions"
+          title: "feat(catalog): update Python standalone distributions"
           body: |
             Automated weekly sync with upstream `astral-sh/python-build-standalone` releases.
             
@@ -51,3 +51,6 @@ jobs:
           branch: "automated/update-python-catalog"
           base: main
           delete-branch: true
+          labels: |
+            enhancement
+            dependencies
