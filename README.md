@@ -144,7 +144,7 @@ python scripts/update-python-versions.py
 
 ### Using PowerShell:
 ```powershell
-.\scripts\update-python-versions.ps1
+.\\scripts\\update-python-versions.ps1
 ```
 
 Options:
@@ -157,8 +157,8 @@ Options:
 
 ### Build with Maven:
 ```powershell
-.\scripts\build-plugin.ps1 python-tool-jenkins-plugin package -UseContainer
+.\\scripts\\build-plugin.ps1 python-tool-jenkins-plugin package -UseContainer
 ```
 
 Artifact output:
-`target/python-tool-jenkins-plugin.hpi`
+`target/python-tool.hpi`

@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -29,24 +31,28 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Build and Package HPI
-        run: |
-          mvn -B -ntp clean package -DskipTests
-
-      - name: Compute Checksums
-        run: |
-          cd target
-          sha256sum python-tool-jenkins-plugin.hpi > python-tool-jenkins-plugin.hpi.sha256
-          cat python-tool-jenkins-plugin.hpi.sha256
-
       - name: Determine Release Tag
         id: vars
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+            TAG="${{ github.event.inputs.tag_name }}"
           else
-            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            TAG="${{ github.ref_name }}"
           fi
+          # Strip leading 'v' for changelist if present
+          VER="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VER}" >> $GITHUB_OUTPUT
+
+      - name: Build and Package HPI
+        run: |
+          mvn -B -ntp clean package -DskipTests -Dchangelist=${{ steps.vars.outputs.version }}
+
+      - name: Compute Checksums
+        run: |
+          cd target
+          sha256sum python-tool.hpi > python-tool.hpi.sha256
+          cat python-tool.hpi.sha256
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -57,5 +63,5 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            target/python-tool-jenkins-plugin.hpi
-            target/python-tool-jenkins-plugin.hpi.sha256
+            target/python-tool.hpi
+            target/python-tool.hpi.sha256

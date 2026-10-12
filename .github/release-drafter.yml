@@ -1,0 +1,47 @@
+_extends: github:jenkinsci/.github:/.github/release-drafter.yml
+
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+version-template: '$MAJOR.$MINOR.$PATCH'
+
+categories:
+  - title: '💥 Breaking Changes'
+    labels:
+      - 'breaking'
+  - title: '🎉 Major Features and Improvements'
+    labels:
+      - 'major-enhancement'
+      - 'major-rfe'
+  - title: '🚀 Features & Enhancements'
+    labels:
+      - 'enhancement'
+      - 'feature'
+      - 'rfe'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+      - 'bugfix'
+      - 'regression'
+      - 'regression-fix'
+  - title: '📦 Dependency Updates'
+    labels:
+      - 'dependencies'
+    collapse-after: 10
+  - title: '📝 Documentation'
+    labels:
+      - 'documentation'
+  - title: '🔨 Maintenance & Tooling'
+    labels:
+      - 'chore'
+      - 'internal'
+      - 'maintenance'
+      - 'developer'
+  - title: '🧪 Tests'
+    labels:
+      - 'test'
+      - 'tests'
+
+template: |
+  ## What's Changed
+  $CHANGES
