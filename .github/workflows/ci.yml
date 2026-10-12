@@ -37,7 +37,7 @@ jobs:
       - name: Build and Test with Maven
         shell: bash
         run: |
-          mvn -B -ntp clean verify -Dlicense.disableCheck=true
+          mvn -B -ntp clean verify -Dlicense.disableCheck=true -Dspotbugs.skip=true
 
       - name: Run SpotBugs Check (Java 21 on Linux)
         if: matrix.os == 'ubuntu-latest' && matrix.java == '21'
