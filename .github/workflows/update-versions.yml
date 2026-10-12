@@ -1,0 +1,53 @@
+name: Update Python Catalog
+
+on:
+  schedule:
+    # Run every Monday at 02:00 UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-catalog:
+    name: Check for Upstream Python Releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Catalog Updater
+        run: |
+          python scripts/update-python-versions.py --catalog src/main/resources/io/jenkins/plugins/python/versions.json --token "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Check for Changes
+        id: git_status
+        run: |
+          git status -s
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.git_status.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(catalog): update Python standalone distributions"
+          title: "chore(catalog): update Python standalone distributions"
+          body: |
+            Automated weekly sync with upstream `astral-sh/python-build-standalone` releases.
+            
+            Updated catalog in `src/main/resources/io/jenkins/plugins/python/versions.json`.
+          branch: "automated/update-python-catalog"
+          base: main
+          delete-branch: true
