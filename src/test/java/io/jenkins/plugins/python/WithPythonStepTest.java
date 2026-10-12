@@ -4,22 +4,20 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import hudson.model.Result;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import java.io.File;
 import java.util.Collections;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class WithPythonStepTest {
-
-    @Rule
-    public JenkinsRule jenkins = new JenkinsRule();
+@WithJenkins
+class WithPythonStepTest {
 
     @Test
-    public void testWithPythonWithConfiguredTool() throws Exception {
+    void testWithPythonWithConfiguredTool(JenkinsRule jenkins) throws Exception {
         File dummyHome = jenkins.createTmpDir();
         new File(dummyHome, "bin").mkdirs();
 
@@ -42,7 +40,7 @@ public class WithPythonStepTest {
     }
 
     @Test
-    public void testWithPythonCustomHome() throws Exception {
+    void testWithPythonCustomHome(JenkinsRule jenkins) throws Exception {
         File customDir = jenkins.createTmpDir();
 
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, "test-custom-home");
@@ -60,7 +58,7 @@ public class WithPythonStepTest {
     }
 
     @Test
-    public void testWithPythonCudaEnvironment() throws Exception {
+    void testWithPythonCudaEnvironment(JenkinsRule jenkins) throws Exception {
         File dummyHome = jenkins.createTmpDir();
         new File(dummyHome, "bin").mkdirs();
 
@@ -85,7 +83,7 @@ public class WithPythonStepTest {
     }
 
     @Test
-    public void testWithPythonVirtualenv() throws Exception {
+    void testWithPythonVirtualenv(JenkinsRule jenkins) throws Exception {
         File dummyHome = jenkins.createTmpDir();
         new File(dummyHome, "bin").mkdirs();
 
@@ -110,7 +108,7 @@ public class WithPythonStepTest {
     }
 
     @Test
-    public void testWithVirtualenvStep() throws Exception {
+    void testWithVirtualenvStep(JenkinsRule jenkins) throws Exception {
         File dummyHome = jenkins.createTmpDir();
         new File(dummyHome, "bin").mkdirs();
 

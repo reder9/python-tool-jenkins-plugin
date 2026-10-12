@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>5.9</version>
+        <version>6.2236.v12dd4c483242</version>
         <relativePath />
     </parent>
 
@@ -16,8 +16,8 @@
     <packaging>hpi</packaging>
 
     <name>Python Tool and Pipeline Plugin</name>
-    <description>Jenkins plugin that automatically provisions standalone Python distributions across Linux, macOS, and Windows agents and integrates with Jenkins Pipelines.</description>
-    <url>https://github.com/reder9/python-tool-jenkins-plugin</url>
+    <description>Plugin that automatically provisions standalone Python distributions across Linux, macOS, and Windows agents and integrates with Pipelines.</description>
+    <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
     <licenses>
         <license>
@@ -26,31 +26,28 @@
         </license>
     </licenses>
 
-    <developers>
-        <developer>
-            <id>redersoft</id>
-            <name>RederSoft</name>
-            <email>dev@redersoft.com</email>
-        </developer>
-    </developers>
-
     <scm>
-        <connection>scm:git:https://github.com/reder9/python-tool-jenkins-plugin.git</connection>
-        <developerConnection>scm:git:git@github.com:reder9/python-tool-jenkins-plugin.git</developerConnection>
-        <url>https://github.com/reder9/python-tool-jenkins-plugin</url>
+        <connection>scm:git:https://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
+        <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
+        <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
         <tag>${scmTag}</tag>
     </scm>
 
     <issueManagement>
         <system>GitHub Issues</system>
-        <url>https://github.com/reder9/python-tool-jenkins-plugin/issues</url>
+        <url>https://github.com/jenkinsci/${project.artifactId}-plugin/issues</url>
     </issueManagement>
 
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
-        <gitHubRepo>reder9/python-tool-jenkins-plugin</gitHubRepo>
-        <jenkins.baseline>2.479</jenkins.baseline>
-        <jenkins.version>2.479.3</jenkins.version>
+        <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
+        <jenkins.baseline>2.555</jenkins.baseline>
+        <jenkins.version>${jenkins.baseline}.3</jenkins.version>
+        <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
+        <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
+        <ban-deprecated-stapler.skip>false</ban-deprecated-stapler.skip>
+        <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
+        <banObsoleteDependencyOverrides.skip>false</banObsoleteDependencyOverrides.skip>
         <spotbugs.effort>Max</spotbugs.effort>
         <spotbugs.threshold>Medium</spotbugs.threshold>
     </properties>
@@ -59,8 +56,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.479.x</artifactId>
-                <version>5054.v620b_5d2b_d5e6</version>
+                <artifactId>bom-2.555.x</artifactId>
+                <version>7169.vb_32a_cfd93fa_6</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
