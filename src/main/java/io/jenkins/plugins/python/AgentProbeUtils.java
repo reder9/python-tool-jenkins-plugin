@@ -1,5 +1,6 @@
 package io.jenkins.plugins.python;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Launcher;
 import hudson.model.Node;
 import hudson.model.TaskListener;
@@ -175,6 +176,7 @@ public final class AgentProbeUtils implements Serializable {
         }
     }
 
+    @SuppressFBWarnings(value = "DMI_HARDCODED_ABSOLUTE_FILENAME", justification = "Probing standard platform paths for CUDA toolchain")
     private static class ProbeCudaCallable extends MasterToSlaveCallable<CudaInfo, RuntimeException> {
         private static final long serialVersionUID = 1L;
 

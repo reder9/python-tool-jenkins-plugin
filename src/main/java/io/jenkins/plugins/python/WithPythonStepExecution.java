@@ -73,10 +73,12 @@ public class WithPythonStepExecution extends StepExecution implements Serializab
             }
             PythonInstallation installation = new PythonInstallation("CustomPython", basePythonHome, Collections.emptyList());
             PythonInstallation translated = installation.forNode(node, listener).forEnvironment(currentEnv != null ? currentEnv : new EnvVars());
-            basePythonExe = translated.getExecutable(launcher);
+            boolean isWin = launcher != null ? !launcher.isUnix() : basePythonHome.contains("\\");
+            if (launcher != null) {
+                basePythonExe = translated.getExecutable(launcher);
+            }
             additions.put("PYTHONHOME", basePythonHome);
             additions.put("PYTHON_HOME", basePythonHome);
-            boolean isWin = launcher != null ? !launcher.isUnix() : basePythonHome.contains("\\");
             additions.put("PATH", isWin ? basePythonHome + ";" + basePythonHome + "\\Scripts" : basePythonHome + "/bin");
         } else if (step.isSystem()) {
             AgentProbeUtils.SystemPythonInfo sysPy = AgentProbeUtils.probeSystemPython(node, launcher, listener);
