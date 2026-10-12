@@ -26,9 +26,20 @@ Similar to the Jenkins NodeJS and JDK tool plugins, this plugin enables Jenkins 
   - Injects Python executable and scripts directory into the front of `PATH`.
   - Sets `PYTHONHOME` to the standalone distribution root.
   - Sets `PYTHONUNBUFFERED=1` for real-time Jenkins console output streaming.
+- **Virtualenv Wrapper**:
+  - `withVirtualenv(python: '3.12.15', venvDir: '.venv', requirements: 'requirements.txt')`: Dedicated step that manages isolated virtual environments and automatically provisions requirements.
+  - Inline `withPython(version: '3.12.15', venv: true)` support.
+  - Automatically unsets `PYTHONHOME` and binds `VIRTUAL_ENV` to prevent distribution conflicts.
+- **Corporate & Air-Gapped Compliance**:
+  - `mirrorUrl`: Download standalone archives from internal Artifactory/Nexus mirrors rather than public GitHub releases.
+  - `system: true`: Automatically probe and bind pre-installed agent system Python binaries.
+  - `home: '/opt/custom/python'`: Point to existing custom corporate runtime installations.
+- **CUDA / GPU Acceleration**:
+  - `cuda: true`: Automatically probes agent CUDA drivers and toolkits (`CUDA_HOME`, `/usr/local/cuda`, `nvcc`), injecting CUDA paths and libraries (`LD_LIBRARY_PATH`, `PATH`) with graceful fallback to CPU.
+  - `cudaHome`: Explicit path override for custom GPU installations.
 - **Dynamic Catalog & Automated Updater**:
-  - Pre-packaged with stable releases across Python 3.13, 3.12, 3.11, 3.10, 3.9, and 3.8.
-  - Included Python and PowerShell automation scripts query GitHub API for upstream releases and update `versions.json`.
+  - Pre-packaged with stable releases across Python 3.14, 3.13, 3.12, 3.11, 3.10, 3.9, and 3.8.
+  - Automated weekly synchronization workflow queries upstream releases and updates `versions.json`.
 
 ---
 
@@ -98,22 +109,93 @@ pipeline {
 }
 ```
 
-### 4. Scripted Pipeline
+### 4. Dedicated Virtualenv Step (`withVirtualenv`)
 
 ```groovy
-node {
-    stage('Prepare Python') {
-        withPython(version: '3.11') {
-            sh '''
-                python3 -m venv .venv
-                . .venv/bin/activate
-                pip install -r requirements.txt
-                pytest
-            '''
+pipeline {
+    agent any
+    stages {
+        stage('Build & Test') {
+            steps {
+                // Automatically creates an isolated virtualenv and installs requirements
+                withVirtualenv(python: '3.12.15', venvDir: '.venv', requirements: 'requirements.txt') {
+                    sh 'pytest tests/'
+                }
+            }
         }
     }
 }
 ```
+
+### 5. Deep Learning / GPU Acceleration with CUDA (`cuda: true`)
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('GPU Training & Inference') {
+            steps {
+                // Auto-detects agent CUDA installation, injects CUDA_HOME and PATH, with CPU fallback
+                withPython(version: '3.12.15', cuda: true) {
+                    sh 'python -c "import torch; print(\"CUDA Available:\", torch.cuda.is_available())"'
+                }
+            }
+        }
+    }
+}
+```
+
+### 6. Corporate Mirror / Air-Gapped Networks (`mirrorUrl` & `system`)
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Internal Mirror') {
+            steps {
+                // Fetch standalone Python tarball from internal Artifactory/Nexus mirror
+                withPython(version: '3.12.15', mirrorUrl: 'https://artifactory.corp.internal/python-dist/') {
+                    sh 'pip install --index-url https://pypi.corp.internal/simple -r requirements.txt'
+                }
+            }
+        }
+        stage('Use Pre-installed System Python') {
+            steps {
+                withPython(system: true) {
+                    sh 'python3 --version'
+                }
+            }
+        }
+    }
+}
+```
+
+---
+
+## Step Parameters Reference
+
+### `withPython`
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `version` | String | `null` | Exact (e.g. `3.12.15`) or prefix (e.g. `3.12`) Python version to dynamically download and provision. |
+| `tool` | String | `null` | Name of pre-configured Python installation from Global Tool Configuration. |
+| `system` | boolean | `false` | When true, discovers and uses agent's pre-installed system Python (`python3`/`python`). |
+| `home` | String | `null` | Explicit directory path to an existing Python installation on the agent. |
+| `venv` | boolean | `false` | When true, automatically activates a project-local virtual environment (`.venv`). |
+| `venvDir` | String | `".venv"` | Relative workspace path to the virtualenv directory. |
+| `mirrorUrl`| String | `null` | Base URL of internal corporate mirror hosting python-build-standalone archives. |
+| `cuda` | boolean | `false` | When true, probes and injects CUDA GPU environment variables (`CUDA_HOME`, `PATH`, `LD_LIBRARY_PATH`). |
+| `cudaHome` | String | `null` | Explicit path override for CUDA toolkit on the agent. |
+
+### `withVirtualenv`
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `python` | String | `null` | Python version (e.g. `3.12.15`) or tool name to use as virtualenv base interpreter. |
+| `venvDir` | String | `".venv"` | Relative workspace directory for virtualenv. |
+| `requirements` | String | `null` | Path to `requirements.txt` file to automatically install upon creation. |
+| `system` | boolean | `false` | When true, uses system Python interpreter to build the virtual environment. |
+| `clear` | boolean | `false` | When true, recreates the virtual environment from scratch. |
+| `systemSitePackages` | boolean | `false` | Give the virtual environment access to the system site-packages. |
 
 ---
 
