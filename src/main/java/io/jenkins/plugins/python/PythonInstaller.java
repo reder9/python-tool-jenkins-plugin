@@ -1,0 +1,153 @@
+package io.jenkins.plugins.python;
+
+import hudson.Extension;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.Node;
+import hudson.model.TaskListener;
+import hudson.tools.ToolInstallation;
+import hudson.tools.ToolInstaller;
+import hudson.tools.ToolInstallerDescriptor;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+
+/**
+ * Automatically downloads and installs self-contained standalone Python distributions
+ * on Windows, Linux, and macOS agents without requiring system package managers or root privileges.
+ */
+public class PythonInstaller extends ToolInstaller {
+
+    private final String id;
+
+    @DataBoundConstructor
+    public PythonInstaller(String id) {
+        super(null);
+        this.id = id != null ? id.trim() : "";
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    @Override
+    public FilePath performInstallation(ToolInstallation tool, Node node, TaskListener log) throws IOException, InterruptedException {
+        FilePath expected = preferredLocation(tool, node);
+        String platformKey = PlatformUtils.detectPlatformKey(node, null, log);
+
+        PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
+        String resolvedVersion = catalog.resolveVersion(id);
+        PythonVersionCatalog.PlatformDownload download = catalog.getDownload(resolvedVersion, platformKey);
+
+        if (download == null) {
+            throw new IOException("[Python Plugin] No pre-built Python standalone release found for version: '"
+                    + id + "' (resolved: " + resolvedVersion + ") on platform: " + platformKey);
+        }
+
+        FilePath marker = expected.child(".installed-python-version");
+        String markerContent = resolvedVersion + "@" + download.getUrl();
+
+        if (marker.exists()) {
+            try {
+                String existing = marker.readToString().trim();
+                if (existing.equals(markerContent)) {
+                    FilePath existingHome = resolveHome(expected);
+                    log.getLogger().println("[Python Plugin] Python " + resolvedVersion + " is already up to date at: " + existingHome.getRemote());
+                    return existingHome;
+                }
+            } catch (IOException | InterruptedException e) {
+                // If marker read fails, re-install
+            }
+        }
+
+        log.getLogger().println("==================================================================");
+        log.getLogger().println("[Python Plugin] Provisioning Standalone Python " + resolvedVersion);
+        log.getLogger().println("  Platform:    " + platformKey);
+        log.getLogger().println("  Download:    " + download.getUrl());
+        log.getLogger().println("  Destination: " + expected.getRemote());
+        log.getLogger().println("==================================================================");
+
+        expected.mkdirs();
+        FilePath tempArchive = expected.child("cpython-download.tar.gz");
+
+        try {
+            log.getLogger().println("[Python Plugin] Downloading archive (" + String.format("%.1f", download.getSize() / 1024.0 / 1024.0) + " MB)...");
+            tempArchive.copyFrom(new URL(download.getUrl()));
+
+            log.getLogger().println("[Python Plugin] Unpacking archive...");
+            tempArchive.untar(expected, FilePath.TarCompression.GZIP);
+        } finally {
+            if (tempArchive.exists()) {
+                tempArchive.delete();
+            }
+        }
+
+        FilePath pyHome = resolveHome(expected);
+
+        // On Unix, ensure bin/python binaries have executable permissions
+        FilePath binDir = pyHome.child("bin");
+        if (binDir.exists()) {
+            for (FilePath file : binDir.list()) {
+                try {
+                    file.chmod(0755);
+                } catch (IOException | InterruptedException ignored) {
+                }
+            }
+        }
+
+        marker.write(markerContent, "UTF-8");
+        log.getLogger().println("[Python Plugin] Successfully installed Python " + resolvedVersion + " at: " + pyHome.getRemote());
+        return pyHome;
+    }
+
+    private FilePath resolveHome(FilePath root) throws IOException, InterruptedException {
+        FilePath subPython = root.child("python");
+        if (subPython.exists() && (subPython.child("bin").exists() || subPython.child("python.exe").exists())) {
+            return subPython;
+        }
+        return root;
+    }
+
+    @Extension
+    @Symbol("pythonStandalone")
+    public static class DescriptorImpl extends ToolInstallerDescriptor<PythonInstaller> {
+
+        @Override
+        public String getDisplayName() {
+            return "Install Standalone Python from Astral-sh";
+        }
+
+        @Override
+        public boolean isApplicable(Class<? extends ToolInstallation> toolType) {
+            return toolType == PythonInstallation.class;
+        }
+
+        public ListBoxModel doFillIdItems() {
+            ListBoxModel model = new ListBoxModel();
+            PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
+            List<String> versions = catalog.getAvailableVersions();
+
+            for (String v : versions) {
+                model.add("Python " + v, v);
+            }
+            return model;
+        }
+
+        public FormValidation doCheckId(@QueryParameter String value) {
+            if (value == null || value.trim().isEmpty()) {
+                return FormValidation.error("Python version must be specified.");
+            }
+            PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
+            if (catalog.getRelease(value.trim()) == null) {
+                return FormValidation.warning("Version '" + value.trim() + "' is not present in bundled catalog. It will attempt dynamic resolution.");
+            }
+            return FormValidation.ok();
+        }
+    }
+}
