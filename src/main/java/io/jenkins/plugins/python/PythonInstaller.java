@@ -11,10 +11,12 @@ import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
 
 import java.io.IOException;
 import java.net.URL;
@@ -191,7 +193,13 @@ public class PythonInstaller extends ToolInstaller {
             return toolType == PythonInstallation.class;
         }
 
+        @POST
+        @SuppressWarnings({"lgtm[jenkins/no-permission-check]", "lgtm[jenkins/csrf]"})
         public ListBoxModel doFillIdItems() {
+            Jenkins instance = Jenkins.getInstanceOrNull();
+            if (instance != null) {
+                instance.checkPermission(Jenkins.ADMINISTER);
+            }
             ListBoxModel model = new ListBoxModel();
             PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
             List<String> versions = catalog.getAvailableVersions();
@@ -202,7 +210,13 @@ public class PythonInstaller extends ToolInstaller {
             return model;
         }
 
+        @POST
+        @SuppressWarnings({"lgtm[jenkins/no-permission-check]", "lgtm[jenkins/csrf]"})
         public FormValidation doCheckId(@QueryParameter String value) {
+            Jenkins instance = Jenkins.getInstanceOrNull();
+            if (instance != null) {
+                instance.checkPermission(Jenkins.ADMINISTER);
+            }
             if (value == null || value.trim().isEmpty()) {
                 return FormValidation.error("Python version must be specified.");
             }
