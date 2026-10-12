@@ -185,8 +185,12 @@ public class PythonInstaller extends ToolInstaller {
                 return FormValidation.error("Python version must be specified.");
             }
             PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
-            if (catalog.getRelease(value.trim()) == null) {
+            String resolved = catalog.resolveVersion(value.trim());
+            if (catalog.getRelease(resolved) == null) {
                 return FormValidation.warning("Version '" + value.trim() + "' is not present in bundled catalog. It will attempt dynamic resolution.");
+            }
+            if (!resolved.equals(value.trim())) {
+                return FormValidation.ok("Resolves to bundled release: " + resolved);
             }
             return FormValidation.ok();
         }

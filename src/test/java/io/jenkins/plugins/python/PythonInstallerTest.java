@@ -35,6 +35,9 @@ class PythonInstallerTest {
         assertEquals(FormValidation.Kind.ERROR, desc.doCheckId(null).kind);
         assertEquals(FormValidation.Kind.OK, desc.doCheckId("3.12.15").kind);
         assertEquals(FormValidation.Kind.OK, desc.doCheckId("3.13.16").kind);
+        assertEquals(FormValidation.Kind.OK, desc.doCheckId("3.11").kind);
+        assertEquals(FormValidation.Kind.OK, desc.doCheckId("3.10").kind);
+        assertEquals(FormValidation.Kind.OK, desc.doCheckId("latest").kind);
         assertEquals(FormValidation.Kind.WARNING, desc.doCheckId("9.99.99").kind);
     }
 }
