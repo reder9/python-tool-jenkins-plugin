@@ -3,4 +3,7 @@
   <f:entry title="${%Python Version}" field="id">
     <f:select />
   </f:entry>
+  <f:entry title="${%Custom Mirror Base URL}" field="mirrorUrl">
+    <f:textbox />
+  </f:entry>
 </j:jelly>

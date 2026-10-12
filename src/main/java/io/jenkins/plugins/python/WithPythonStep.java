@@ -16,10 +16,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Pipeline step enabling execution inside a specific Python version environment.
+ * Pipeline step enabling execution inside a specific Python version environment,
+ * supporting virtual environments, CUDA hardware acceleration, corporate mirrors,
+ * and host system Python runtimes.
+ *
  * Example:
  * <pre>
- * withPython(version: '3.12.15') {
+ * withPython(version: '3.12.15', venv: '.venv', cuda: true) {
  *     sh 'python --version'
  * }
  * </pre>
@@ -30,9 +33,18 @@ public class WithPythonStep extends Step implements Serializable {
 
     private String version;
     private String tool;
+    private boolean system;
+    private String home;
+    private String mirrorUrl;
+    private String venv;
+    private boolean clear;
+    private boolean systemSitePackages;
+    private boolean cuda;
+    private String cudaHome;
 
     @DataBoundConstructor
-    public WithPythonStep() {
+    public WithPythonStep(String version) {
+        this.version = Util.fixEmptyAndTrim(version);
     }
 
     public String getVersion() {
@@ -51,6 +63,78 @@ public class WithPythonStep extends Step implements Serializable {
     @DataBoundSetter
     public void setTool(String tool) {
         this.tool = Util.fixEmptyAndTrim(tool);
+    }
+
+    public boolean isSystem() {
+        return system;
+    }
+
+    @DataBoundSetter
+    public void setSystem(boolean system) {
+        this.system = system;
+    }
+
+    public String getHome() {
+        return home;
+    }
+
+    @DataBoundSetter
+    public void setHome(String home) {
+        this.home = Util.fixEmptyAndTrim(home);
+    }
+
+    public String getMirrorUrl() {
+        return mirrorUrl;
+    }
+
+    @DataBoundSetter
+    public void setMirrorUrl(String mirrorUrl) {
+        this.mirrorUrl = Util.fixEmptyAndTrim(mirrorUrl);
+    }
+
+    public String getVenv() {
+        return venv;
+    }
+
+    @DataBoundSetter
+    public void setVenv(String venv) {
+        this.venv = Util.fixEmptyAndTrim(venv);
+    }
+
+    public boolean isClear() {
+        return clear;
+    }
+
+    @DataBoundSetter
+    public void setClear(boolean clear) {
+        this.clear = clear;
+    }
+
+    public boolean isSystemSitePackages() {
+        return systemSitePackages;
+    }
+
+    @DataBoundSetter
+    public void setSystemSitePackages(boolean systemSitePackages) {
+        this.systemSitePackages = systemSitePackages;
+    }
+
+    public boolean isCuda() {
+        return cuda;
+    }
+
+    @DataBoundSetter
+    public void setCuda(boolean cuda) {
+        this.cuda = cuda;
+    }
+
+    public String getCudaHome() {
+        return cudaHome;
+    }
+
+    @DataBoundSetter
+    public void setCudaHome(String cudaHome) {
+        this.cudaHome = Util.fixEmptyAndTrim(cudaHome);
     }
 
     @Override

@@ -3,6 +3,7 @@ package io.jenkins.plugins.python;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.Util;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.tools.ToolInstallation;
@@ -12,6 +13,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import java.io.IOException;
@@ -25,6 +27,7 @@ import java.util.List;
 public class PythonInstaller extends ToolInstaller {
 
     private final String id;
+    private String mirrorUrl;
 
     @DataBoundConstructor
     public PythonInstaller(String id) {
@@ -34,6 +37,15 @@ public class PythonInstaller extends ToolInstaller {
 
     public String getId() {
         return id;
+    }
+
+    public String getMirrorUrl() {
+        return mirrorUrl;
+    }
+
+    @DataBoundSetter
+    public void setMirrorUrl(String mirrorUrl) {
+        this.mirrorUrl = Util.fixEmptyAndTrim(mirrorUrl);
     }
 
     @Override
@@ -50,8 +62,18 @@ public class PythonInstaller extends ToolInstaller {
                     + id + "' (resolved: " + resolvedVersion + ") on platform: " + platformKey);
         }
 
+        String downloadUrl = download.getUrl();
+        String effectiveMirror = mirrorUrl != null && !mirrorUrl.isEmpty() ? mirrorUrl : System.getProperty("io.jenkins.plugins.python.mirrorUrl");
+        if (effectiveMirror != null && !effectiveMirror.trim().isEmpty()) {
+            String baseUrl = effectiveMirror.trim();
+            if (!baseUrl.endsWith("/")) {
+                baseUrl += "/";
+            }
+            downloadUrl = baseUrl + download.getFilename();
+        }
+
         FilePath marker = expected.child(".installed-python-version");
-        String markerContent = resolvedVersion + "@" + download.getUrl();
+        String markerContent = resolvedVersion + "@" + downloadUrl;
 
         if (marker.exists()) {
             try {
@@ -69,7 +91,7 @@ public class PythonInstaller extends ToolInstaller {
         log.getLogger().println("==================================================================");
         log.getLogger().println("[Python Plugin] Provisioning Standalone Python " + resolvedVersion);
         log.getLogger().println("  Platform:    " + platformKey);
-        log.getLogger().println("  Download:    " + download.getUrl());
+        log.getLogger().println("  Download:    " + downloadUrl);
         log.getLogger().println("  Destination: " + expected.getRemote());
         log.getLogger().println("==================================================================");
 
@@ -78,7 +100,7 @@ public class PythonInstaller extends ToolInstaller {
 
         try {
             log.getLogger().println("[Python Plugin] Downloading archive (" + String.format("%.1f", download.getSize() / 1024.0 / 1024.0) + " MB)...");
-            tempArchive.copyFrom(new URL(download.getUrl()));
+            tempArchive.copyFrom(new URL(downloadUrl));
 
             log.getLogger().println("[Python Plugin] Unpacking archive...");
             tempArchive.untar(expected, FilePath.TarCompression.GZIP);

@@ -6,4 +6,28 @@
   <f:entry title="${%Configured Tool Name}" field="tool">
     <f:textbox />
   </f:entry>
+  <f:entry title="${%Virtual Environment Path / Directory}" field="venv">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Use Host / System Python}" field="system">
+    <f:checkbox />
+  </f:entry>
+  <f:entry title="${%Custom Python Home Path}" field="home">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Custom Mirror Base URL}" field="mirrorUrl">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Enable CUDA Hardware Acceleration}" field="cuda">
+    <f:checkbox />
+  </f:entry>
+  <f:entry title="${%Custom CUDA Home Path}" field="cudaHome">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Clear Virtualenv Before Creation}" field="clear">
+    <f:checkbox />
+  </f:entry>
+  <f:entry title="${%Include System Site Packages}" field="systemSitePackages">
+    <f:checkbox />
+  </f:entry>
 </j:jelly>
