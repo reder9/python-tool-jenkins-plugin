@@ -101,6 +101,47 @@ public class PythonInstaller extends ToolInstaller {
             }
         }
 
+        // On Windows, ensure python3.exe and Scripts/pip executables are provisioned
+        FilePath winExe = pyHome.child("python.exe");
+        if (winExe.exists()) {
+            FilePath winPy3 = pyHome.child("python3.exe");
+            if (!winPy3.exists()) {
+                try {
+                    winExe.copyTo(winPy3);
+                } catch (IOException | InterruptedException ignored) {
+                }
+            }
+
+            FilePath scriptsDir = pyHome.child("Scripts");
+            if (!scriptsDir.exists()) {
+                scriptsDir.mkdirs();
+            }
+            FilePath pipExe = scriptsDir.child("pip.exe");
+            if (!pipExe.exists()) {
+                FilePath bundledWheelDir = pyHome.child("Lib").child("ensurepip").child("_bundled");
+                if (bundledWheelDir.exists()) {
+                    try {
+                        Launcher launcher = node.createLauncher(log);
+                        launcher.launch()
+                                .cmds(winExe.getRemote(), "-m", "pip", "install", "--no-index", "--find-links", bundledWheelDir.getRemote(), "--force-reinstall", "pip")
+                                .stdout(log.getLogger())
+                                .stderr(log.getLogger())
+                                .join();
+                    } catch (IOException | InterruptedException e) {
+                        log.getLogger().println("[Python Plugin] Offline pip provisioning note: " + e.getMessage());
+                    }
+                }
+                if (!scriptsDir.child("pip.exe").exists()) {
+                    try {
+                        String cmdContent = "@echo off\r\n\"%~dp0..\\python.exe\" -m pip %*\r\n";
+                        scriptsDir.child("pip.cmd").write(cmdContent, "UTF-8");
+                        scriptsDir.child("pip3.cmd").write(cmdContent, "UTF-8");
+                    } catch (IOException | InterruptedException ignored) {
+                    }
+                }
+            }
+        }
+
         marker.write(markerContent, "UTF-8");
         log.getLogger().println("[Python Plugin] Successfully installed Python " + resolvedVersion + " at: " + pyHome.getRemote());
         return pyHome;

@@ -48,7 +48,6 @@ public class PythonInstallation extends ToolInstallation implements
     public void buildEnvVars(EnvVars env) {
         String home = getHome();
         if (home != null && !home.isEmpty()) {
-            env.put("PYTHONHOME", home);
             env.put("PYTHON_HOME", home);
             env.put("PYTHONUNBUFFERED", "1");
 
@@ -57,7 +56,7 @@ public class PythonInstallation extends ToolInstallation implements
 
             if (isWin) {
                 String winScripts = home + "\\Scripts";
-                String newPath = home + ";" + winScripts + (path != null && !path.isEmpty() ? ";" + path : "");
+                String newPath = winScripts + ";" + home + (path != null && !path.isEmpty() ? ";" + path : "");
                 env.put("PATH", newPath);
             } else {
                 String binUnix = home + "/bin";
