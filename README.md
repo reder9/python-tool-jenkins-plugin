@@ -237,4 +237,4 @@ python scripts/update-python-versions.py
 
 ## License
 
-This plugin is licensed under the [MIT License](LICENSE.md).
+This plugin is licensed under the [MIT License](LICENSE).
