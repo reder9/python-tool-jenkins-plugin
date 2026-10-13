@@ -18,7 +18,7 @@ Similar to the Jenkins NodeJS and Go tool plugins, this plugin enables Jenkins j
 | **Distribution Source** | Official pre-built standalone relocatable binaries from `astral-sh/python-build-standalone` | Host system Python paths or legacy installers | Compiles Python from source on agent via `pyenv` |
 | **System Prerequisites** | **Zero**. No compilers, no system headers, no root/admin access required | Requires Python/virtualenv already installed on agents | Requires `git`, `pyenv`, `gcc`, `make`, OpenSSL/zlib development libraries |
 | **Platform Architecture Support** | **Linux** (`x86_64`, `aarch64`, `armv7`, `ppc64le`, `s390x`, `musl`/Alpine)<br>**macOS** (`x86_64`, `aarch64` Apple Silicon)<br>**Windows** (`x86_64`, `aarch64`, `x86`) | Platform-dependent based on pre-installed agent binaries | Primarily Linux/macOS (requires `pyenv-win` on Windows) |
-| **Coexistence & Tool Namespace** | Tool registered as **Python (Standalone)** (`@Symbol({"pythonTool", "standalonePython", "python"})`) to avoid collisions if ShiningPanda is also installed | Registered as "Python" | Re-uses ShiningPanda tool descriptors |
+| **Coexistence & Tool Namespace** | Tool registered as **Python** (`@Symbol("python")`) with automatic fallback support | Registered as "Python" | Re-uses ShiningPanda tool descriptors |
 | **Pipeline Integration** | Native modern pipeline step: `withPython(...)` supporting dynamic downloads, inline venv, and CUDA | Freestyle Builders and legacy pipeline wrappers | `withPythonEnv(...)` wrapper around pyenv |
 | **Corporate Proxies & Air-Gapped** | Full Jenkins proxy support (`ProxyConfiguration`), `mirrorUrl`, dynamic update caching, and local `python-versions.json` override | Relies on Jenkins proxy configuration | Depends on access to pyenv github repositories |
 
@@ -36,7 +36,7 @@ Similar to the Jenkins NodeJS and Go tool plugins, this plugin enables Jenkins j
   - `withPython(version: '3.12.15')`: Dynamically downloads and configures Python on-the-fly.
   - `withPython(tool: 'Python 3.12')`: Uses a pre-configured Python installation from Global Tool Configuration.
   - `withPython(version: '3.12', venv: '.venv')`: Transparently provisions and activates an isolated virtual environment.
-  - Declarative `tools { pythonTool '...' }` or `tools { python '...' }` directive support.
+  - Declarative `tools { python '...' }` directive support.
 - **Environment Management**:
   - Injects Python executable and scripts directory into `PATH`.
   - Sets `PYTHONHOME` to the standalone distribution root (and unsets it cleanly inside virtual environments).
@@ -101,7 +101,7 @@ pipeline {
     agent any
     tools {
         // References a configured tool installation in Manage Jenkins -> Tools
-        pythonTool 'Python 3.12'
+        python 'Python 3.12'
     }
     stages {
         stage('Build & Test') {
@@ -201,7 +201,7 @@ pipeline {
 ## Global Tool Configuration (Jenkins UI)
 
 1. Navigate to **Manage Jenkins** &rarr; **Tools**.
-2. Scroll to **Python (Standalone)**.
+2. Scroll to **Python**.
 3. Click **Add Python**.
 4. Configure name (e.g., `Python 3.12`).
 5. Select **Install automatically** &rarr; **Install Standalone Python from Astral-sh**.
