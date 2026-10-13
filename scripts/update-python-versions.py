@@ -17,14 +17,21 @@ import sys
 import urllib.request
 
 REPO = "astral-sh/python-build-standalone"
-API_URL = f"https://api.github.com/repos/{REPO}/releases?per_page=30"
+API_URL = f"https://api.github.com/repos/{REPO}/releases?per_page=6"
 
 TARGET_MAP = {
     "x86_64-unknown-linux-gnu": "linux-x86_64",
     "aarch64-unknown-linux-gnu": "linux-aarch64",
+    "powerpc64le-unknown-linux-gnu": "linux-ppc64le",
+    "ppc64le-unknown-linux-gnu": "linux-ppc64le",
+    "s390x-unknown-linux-gnu": "linux-s390x",
+    "armv7-unknown-linux-gnueabihf": "linux-armv7",
+    "x86_64-unknown-linux-musl": "linux-x86_64-musl",
+    "aarch64-unknown-linux-musl": "linux-aarch64-musl",
     "x86_64-apple-darwin": "macos-x86_64",
     "aarch64-apple-darwin": "macos-aarch64",
     "x86_64-pc-windows-msvc": "windows-x86_64",
+    "aarch64-pc-windows-msvc": "windows-aarch64",
     "i686-pc-windows-msvc": "windows-x86",
 }
 
@@ -112,7 +119,7 @@ def main():
     parser = argparse.ArgumentParser(description="Update Python standalone versions catalog.")
     parser.add_argument("--catalog", "-c", help="Path to versions.json output file.")
     parser.add_argument("--token", "-t", help="GitHub API personal access token.")
-    parser.add_argument("--limit", "-l", type=int, default=30, help="Number of releases to query.")
+    parser.add_argument("--limit", "-l", type=int, default=6, help="Number of releases to query.")
     args = parser.parse_args()
 
     if args.catalog:

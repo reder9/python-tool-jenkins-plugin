@@ -1,9 +1,14 @@
 package io.jenkins.plugins.python;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,5 +58,59 @@ class PythonVersionCatalogTest {
         PythonVersionCatalog.PlatformDownload winX64 = catalog.getDownload(latest, "windows-x86_64");
         assertNotNull(winX64, "Missing windows-x86_64 for " + latest);
         assertTrue(winX64.getUrl().contains("windows-msvc"), "URL should target windows-msvc");
+
+        PythonVersionCatalog.PlatformDownload winArm64 = catalog.getDownload(latest, "windows-aarch64");
+        assertNotNull(winArm64, "Missing windows-aarch64 for " + latest);
+        assertTrue(winArm64.getUrl().contains("aarch64-pc-windows-msvc"), "URL should target aarch64 windows");
+
+        PythonVersionCatalog.PlatformDownload ppc64le = catalog.getDownload(latest, "linux-ppc64le");
+        assertNotNull(ppc64le, "Missing linux-ppc64le for " + latest);
+
+        PythonVersionCatalog.PlatformDownload s390x = catalog.getDownload(latest, "linux-s390x");
+        assertNotNull(s390x, "Missing linux-s390x for " + latest);
+
+        PythonVersionCatalog.PlatformDownload musl = catalog.getDownload(latest, "linux-x86_64-musl");
+        assertNotNull(musl, "Missing linux-x86_64-musl for " + latest);
+    }
+
+    @Test
+    void testAirGappedFileOverride(@TempDir Path tempDir) throws Exception {
+        String customJson = "{\n" +
+                "  \"versions\": {\n" +
+                "    \"3.99.1\": {\n" +
+                "      \"releaseTag\": \"20990101\",\n" +
+                "      \"platforms\": {\n" +
+                "        \"linux-x86_64\": {\n" +
+                "          \"url\": \"https://internal.repo/cpython-3.99.1.tar.gz\",\n" +
+                "          \"size\": 12345,\n" +
+                "          \"filename\": \"cpython-3.99.1.tar.gz\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        Path overrideFile = tempDir.resolve("custom-versions.json");
+        Files.writeString(overrideFile, customJson);
+
+        String prev = System.getProperty("io.jenkins.plugins.python.versionsFile");
+        try {
+            System.setProperty("io.jenkins.plugins.python.versionsFile", overrideFile.toString());
+            PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
+            catalog.reload();
+
+            assertTrue(catalog.getAvailableVersions().contains("3.99.1"));
+            assertEquals("3.99.1", catalog.resolveVersion("3.99"));
+            PythonVersionCatalog.PlatformDownload dl = catalog.getDownload("3.99.1", "linux-x86_64");
+            assertNotNull(dl);
+            assertEquals("https://internal.repo/cpython-3.99.1.tar.gz", dl.getUrl());
+        } finally {
+            if (prev != null) {
+                System.setProperty("io.jenkins.plugins.python.versionsFile", prev);
+            } else {
+                System.clearProperty("io.jenkins.plugins.python.versionsFile");
+            }
+            PythonVersionCatalog.getInstance().reload();
+        }
     }
 }

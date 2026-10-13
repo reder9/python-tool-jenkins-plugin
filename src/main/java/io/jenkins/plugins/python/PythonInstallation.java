@@ -85,7 +85,7 @@ public class PythonInstallation extends ToolInstallation implements
     }
 
     @Extension
-    @Symbol("python")
+    @Symbol({"pythonTool", "standalonePython", "python"})
     public static class DescriptorImpl extends ToolDescriptor<PythonInstallation> {
 
         public DescriptorImpl() {
@@ -94,7 +94,7 @@ public class PythonInstallation extends ToolInstallation implements
 
         @Override
         public String getDisplayName() {
-            return "Python";
+            return "Python (Standalone)";
         }
 
         @Override

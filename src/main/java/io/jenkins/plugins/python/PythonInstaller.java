@@ -18,8 +18,11 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
 
+import hudson.ProxyConfiguration;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.List;
 
 /**
@@ -53,7 +56,7 @@ public class PythonInstaller extends ToolInstaller {
     @Override
     public FilePath performInstallation(ToolInstallation tool, Node node, TaskListener log) throws IOException, InterruptedException {
         FilePath expected = preferredLocation(tool, node);
-        String platformKey = PlatformUtils.detectPlatformKey(node, null, log);
+        String platformKey = PlatformUtils.detectPlatformKey(node, log);
 
         PythonVersionCatalog catalog = PythonVersionCatalog.getInstance();
         String resolvedVersion = catalog.resolveVersion(id);
@@ -102,7 +105,13 @@ public class PythonInstaller extends ToolInstaller {
 
         try {
             log.getLogger().println("[Python Plugin] Downloading archive (" + String.format("%.1f", download.getSize() / 1024.0 / 1024.0) + " MB)...");
-            tempArchive.copyFrom(new URL(downloadUrl));
+            URL url = new URL(downloadUrl);
+            URLConnection conn = ProxyConfiguration.open(url);
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(120000);
+            try (InputStream in = conn.getInputStream()) {
+                tempArchive.copyFrom(in);
+            }
 
             log.getLogger().println("[Python Plugin] Unpacking archive...");
             tempArchive.untar(expected, FilePath.TarCompression.GZIP);

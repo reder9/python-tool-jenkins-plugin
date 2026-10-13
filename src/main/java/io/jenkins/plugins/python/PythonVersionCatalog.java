@@ -1,11 +1,18 @@
 package io.jenkins.plugins.python;
 
+import hudson.ProxyConfiguration;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,12 +23,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Loads and caches the standalone Python version catalog from embedded versions.json.
+ * Loads, dynamically fetches, and caches the standalone Python version catalog.
+ * Supports air-gapped instances via local filesystem override and fallback to bundled catalog.
  */
 public final class PythonVersionCatalog implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = Logger.getLogger(PythonVersionCatalog.class.getName());
+
+    public static final String DEFAULT_REMOTE_URL =
+            "https://raw.githubusercontent.com/reder9/python-tool-jenkins-plugin/main/src/main/resources/io/jenkins/plugins/python/versions.json";
+    private static final long CACHE_TTL_MS = 24 * 60 * 60 * 1000L; // 24 hours
 
     private static volatile PythonVersionCatalog instance;
 
@@ -99,13 +111,102 @@ public final class PythonVersionCatalog implements Serializable {
         loadCatalog();
     }
 
+    /**
+     * Reloads the version catalog from local override, dynamic cache, or bundled resources.
+     */
+    public synchronized void reload() {
+        releases.clear();
+        loadCatalog();
+    }
+
     private void loadCatalog() {
+        // 1. Check for explicit local file override (system property or $JENKINS_HOME/python-versions.json)
+        String overridePath = System.getProperty("io.jenkins.plugins.python.versionsFile");
+        if (overridePath != null && !overridePath.trim().isEmpty()) {
+            File customFile = new File(overridePath.trim());
+            if (customFile.isFile() && loadFromFile(customFile)) {
+                LOGGER.log(Level.INFO, "[Python Plugin] Loaded Python version catalog from configured override: " + customFile.getAbsolutePath());
+                return;
+            }
+        }
+
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
+        if (jenkins != null) {
+            File rootFile = new File(jenkins.getRootDir(), "python-versions.json");
+            if (rootFile.isFile() && loadFromFile(rootFile)) {
+                LOGGER.log(Level.INFO, "[Python Plugin] Loaded Python version catalog from JENKINS_HOME override: " + rootFile.getAbsolutePath());
+                return;
+            }
+
+            // 2. Check dynamic cache or fetch remote updates if enabled
+            File cacheDir = new File(new File(jenkins.getRootDir(), "caches"), "python-tool");
+            File cachedFile = new File(cacheDir, "versions.json");
+
+            boolean dynamicFetchEnabled = !"false".equalsIgnoreCase(System.getProperty("io.jenkins.plugins.python.dynamicFetch"));
+            if (dynamicFetchEnabled) {
+                boolean needsRefresh = !cachedFile.exists() || (System.currentTimeMillis() - cachedFile.lastModified() > CACHE_TTL_MS);
+                if (needsRefresh) {
+                    fetchRemoteCatalog(cachedFile);
+                }
+            }
+
+            if (cachedFile.isFile() && loadFromFile(cachedFile)) {
+                LOGGER.log(Level.FINE, "[Python Plugin] Loaded Python version catalog from local disk cache: " + cachedFile.getAbsolutePath());
+                return;
+            }
+        }
+
+        // 3. Fallback: load bundled classpath versions.json
+        loadFromClasspath();
+    }
+
+    private void fetchRemoteCatalog(File cacheDestination) {
+        String remoteUrl = System.getProperty("io.jenkins.plugins.python.versionsUrl", DEFAULT_REMOTE_URL);
+        try {
+            LOGGER.log(Level.INFO, "[Python Plugin] Refreshing Python versions catalog from: " + remoteUrl);
+            URL url = new URL(remoteUrl);
+            URLConnection conn = ProxyConfiguration.open(url);
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(15000);
+
+            try (InputStream in = conn.getInputStream()) {
+                String content = IOUtils.toString(in, StandardCharsets.UTF_8);
+                JSONObject root = JSONObject.fromObject(content);
+                if (root.has("versions") && !root.getJSONObject("versions").isEmpty()) {
+                    FileUtils.writeStringToFile(cacheDestination, content, StandardCharsets.UTF_8);
+                    LOGGER.log(Level.INFO, "[Python Plugin] Successfully cached latest Python versions catalog to: " + cacheDestination.getAbsolutePath());
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "[Python Plugin] Note: Dynamic catalog update skipped (offline or unreachable): " + e.getMessage());
+        }
+    }
+
+    private boolean loadFromFile(File file) {
+        try (InputStream in = new FileInputStream(file)) {
+            String content = IOUtils.toString(in, StandardCharsets.UTF_8);
+            return parseCatalogJson(content);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[Python Plugin] Failed to read version catalog file: " + file.getAbsolutePath(), e);
+            return false;
+        }
+    }
+
+    private void loadFromClasspath() {
         try (InputStream in = PythonVersionCatalog.class.getResourceAsStream("versions.json")) {
             if (in == null) {
-                LOGGER.log(Level.WARNING, "Embedded versions.json resource not found on classpath!");
+                LOGGER.log(Level.WARNING, "[Python Plugin] Embedded versions.json resource not found on classpath!");
                 return;
             }
             String content = IOUtils.toString(in, StandardCharsets.UTF_8);
+            parseCatalogJson(content);
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "[Python Plugin] Failed to parse embedded Python versions catalog", e);
+        }
+    }
+
+    private boolean parseCatalogJson(String content) {
+        try {
             JSONObject root = JSONObject.fromObject(content);
             if (root.has("versions")) {
                 JSONObject vObj = root.getJSONObject("versions");
@@ -128,10 +229,12 @@ public final class PythonVersionCatalog implements Serializable {
                     }
                     releases.put(ver, release);
                 }
+                return true;
             }
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to parse embedded Python versions catalog", e);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[Python Plugin] Invalid Python catalog JSON format: " + e.getMessage());
         }
+        return false;
     }
 
     public List<String> getAvailableVersions() {

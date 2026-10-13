@@ -7,39 +7,49 @@
 
 A production-grade Jenkins plugin that automates Python tool installation and runtime environment configuration across Windows, Linux, and macOS agents.
 
-Similar to the Jenkins NodeJS and JDK tool plugins, this plugin enables Jenkins jobs to dynamically provision specific standalone Python versions without requiring pre-installed system packages, package managers (`apt`, `brew`, `choco`), or administrator/root permissions.
+Similar to the Jenkins NodeJS and Go tool plugins, this plugin enables Jenkins jobs to dynamically provision specific standalone Python versions without requiring pre-installed system packages, package managers (`apt`, `brew`, `choco`), build toolchains, or administrator/root permissions.
+
+---
+
+## Comparison with Existing Jenkins Python Plugins
+
+| Feature / Capability | Python Tool Plugin (This Plugin) | ShiningPanda Plugin | Pyenv Pipeline Plugin |
+|---|---|---|---|
+| **Distribution Source** | Official pre-built standalone relocatable binaries from `astral-sh/python-build-standalone` | Host system Python paths or legacy installers | Compiles Python from source on agent via `pyenv` |
+| **System Prerequisites** | **Zero**. No compilers, no system headers, no root/admin access required | Requires Python/virtualenv already installed on agents | Requires `git`, `pyenv`, `gcc`, `make`, OpenSSL/zlib development libraries |
+| **Platform Architecture Support** | **Linux** (`x86_64`, `aarch64`, `armv7`, `ppc64le`, `s390x`, `musl`/Alpine)<br>**macOS** (`x86_64`, `aarch64` Apple Silicon)<br>**Windows** (`x86_64`, `aarch64`, `x86`) | Platform-dependent based on pre-installed agent binaries | Primarily Linux/macOS (requires `pyenv-win` on Windows) |
+| **Coexistence & Tool Namespace** | Tool registered as **Python (Standalone)** (`@Symbol({"pythonTool", "standalonePython", "python"})`) to avoid collisions if ShiningPanda is also installed | Registered as "Python" | Re-uses ShiningPanda tool descriptors |
+| **Pipeline Integration** | Native modern pipeline step: `withPython(...)` supporting dynamic downloads, inline venv, and CUDA | Freestyle Builders and legacy pipeline wrappers | `withPythonEnv(...)` wrapper around pyenv |
+| **Corporate Proxies & Air-Gapped** | Full Jenkins proxy support (`ProxyConfiguration`), `mirrorUrl`, dynamic update caching, and local `python-versions.json` override | Relies on Jenkins proxy configuration | Depends on access to pyenv github repositories |
 
 ---
 
 ## Features
 
-- **Automated Standalone Provisioning**: Downloads and unpacks self-contained standalone CPython distributions (powered by `astral-sh/python-build-standalone`).
-- **Cross-Platform Support**:
-  - **Linux**: `linux-x86_64`, `linux-aarch64`
-  - **macOS**: `macos-x86_64` (Intel), `macos-aarch64` (Apple Silicon M-series)
-  - **Windows**: `windows-x86_64` (64-bit), `windows-x86` (32-bit)
+- **Automated Standalone Provisioning**: Downloads and unpacks self-contained standalone CPython distributions powered by Astral (`python-build-standalone`).
+- **Comprehensive Cross-Platform Support**:
+  - **Linux**: `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-ppc64le` (IBM Power), `linux-s390x` (IBM Z), and `musl` (Alpine Linux).
+  - **macOS**: `macos-x86_64` (Intel), `macos-aarch64` (Apple Silicon M-series).
+  - **Windows**: `windows-x86_64` (64-bit), `windows-aarch64` (ARM64), `windows-x86` (32-bit).
+- **Early Platform Validation**: Fails early with clear error diagnostics if run on an unsupported OS or CPU architecture instead of downloading incompatible binaries.
 - **Pipeline Integration**:
-  - `withPython(version: '3.12.15')`: Dynamically installs and invokes Python on-the-fly.
+  - `withPython(version: '3.12.15')`: Dynamically downloads and configures Python on-the-fly.
   - `withPython(tool: 'Python 3.12')`: Uses a pre-configured Python installation from Global Tool Configuration.
-  - Declarative `tools { python '...' }` directive support.
+  - `withPython(version: '3.12', venv: '.venv')`: Transparently provisions and activates an isolated virtual environment.
+  - Declarative `tools { pythonTool '...' }` or `tools { python '...' }` directive support.
 - **Environment Management**:
-  - Injects Python executable and scripts directory into the front of `PATH`.
-  - Sets `PYTHONHOME` to the standalone distribution root.
+  - Injects Python executable and scripts directory into `PATH`.
+  - Sets `PYTHONHOME` to the standalone distribution root (and unsets it cleanly inside virtual environments).
   - Sets `PYTHONUNBUFFERED=1` for real-time Jenkins console output streaming.
-- **Virtualenv Wrapper**:
-  - `withVirtualenv(python: '3.12.15', venvDir: '.venv', requirements: 'requirements.txt')`: Dedicated step that manages isolated virtual environments and automatically provisions requirements.
-  - Inline `withPython(version: '3.12.15', venv: true)` support.
-  - Automatically unsets `PYTHONHOME` and binds `VIRTUAL_ENV` to prevent distribution conflicts.
-- **Corporate & Air-Gapped Compliance**:
-  - `mirrorUrl`: Download standalone archives from internal Artifactory/Nexus mirrors rather than public GitHub releases.
-  - `system: true`: Automatically probe and bind pre-installed agent system Python binaries.
-  - `home: '/opt/custom/python'`: Point to existing custom corporate runtime installations.
+- **Corporate Proxy & Air-Gapped Support**:
+  - Fully honors Jenkins proxy settings via `ProxyConfiguration.open(URL)`.
+  - `mirrorUrl`: Download standalone archives from internal Artifactory/Nexus mirrors.
+  - Local catalog override: Place `python-versions.json` in `$JENKINS_HOME` or set `-Dio.jenkins.plugins.python.versionsFile=/path/to/versions.json`.
+- **Dynamic Catalog Fetching**:
+  - Periodically checks and caches upstream version updates without requiring a new plugin release.
+  - Gracefully falls back to cached or bundled version catalogs when offline.
 - **CUDA / GPU Acceleration**:
   - `cuda: true`: Automatically probes agent CUDA drivers and toolkits (`CUDA_HOME`, `/usr/local/cuda`, `nvcc`), injecting CUDA paths and libraries (`LD_LIBRARY_PATH`, `PATH`) with graceful fallback to CPU.
-  - `cudaHome`: Explicit path override for custom GPU installations.
-- **Dynamic Catalog & Automated Updater**:
-  - Pre-packaged with stable releases across Python 3.14, 3.13, 3.12, 3.11, 3.10, 3.9, and 3.8.
-  - Automated weekly synchronization workflow queries upstream releases and updates `versions.json`.
 
 ---
 
@@ -65,14 +75,33 @@ pipeline {
 }
 ```
 
-### 2. Declarative Pipeline (`tools` Block)
+### 2. Isolated Virtual Environment
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Build & Test') {
+            steps {
+                // Automatically creates and activates .venv in the workspace
+                withPython(version: '3.12.15', venv: '.venv') {
+                    sh 'pip install pytest'
+                    sh 'pytest tests/'
+                }
+            }
+        }
+    }
+}
+```
+
+### 3. Declarative Pipeline (`tools` Block)
 
 ```groovy
 pipeline {
     agent any
     tools {
         // References a configured tool installation in Manage Jenkins -> Tools
-        python 'Python 3.12'
+        pythonTool 'Python 3.12'
     }
     stages {
         stage('Build & Test') {
@@ -84,7 +113,7 @@ pipeline {
 }
 ```
 
-### 3. Cross-Platform Declarative Pipeline (Windows & Unix)
+### 4. Cross-Platform Declarative Pipeline (Windows & Unix)
 
 ```groovy
 pipeline {
@@ -93,8 +122,6 @@ pipeline {
         stage('Run Python') {
             steps {
                 withPython(version: '3.12.15') {
-                    // Works seamlessly on both Windows and Linux/macOS agents
-                    // Executable and scripts (bin/ or Scripts/) are automatically on PATH
                     script {
                         if (isUnix()) {
                             sh 'python3 -c "import platform; print(\"Running on:\", platform.platform())"'
@@ -102,24 +129,6 @@ pipeline {
                             bat 'python -c "import platform; print(\"Running on:\", platform.platform())"'
                         }
                     }
-                }
-            }
-        }
-    }
-}
-```
-
-### 4. Dedicated Virtualenv Step (`withVirtualenv`)
-
-```groovy
-pipeline {
-    agent any
-    stages {
-        stage('Build & Test') {
-            steps {
-                // Automatically creates an isolated virtualenv and installs requirements
-                withVirtualenv(python: '3.12.15', venvDir: '.venv', requirements: 'requirements.txt') {
-                    sh 'pytest tests/'
                 }
             }
         }
@@ -172,75 +181,60 @@ pipeline {
 
 ---
 
-## Step Parameters Reference
+## Step Parameters Reference (`withPython`)
 
-### `withPython`
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `version` | String | `null` | Exact (e.g. `3.12.15`) or prefix (e.g. `3.12`) Python version to dynamically download and provision. |
 | `tool` | String | `null` | Name of pre-configured Python installation from Global Tool Configuration. |
+| `venv` | String / bool | `null` | Name or path of virtual environment (e.g. `'.venv'`). When provided, creates and activates the venv. |
 | `system` | boolean | `false` | When true, discovers and uses agent's pre-installed system Python (`python3`/`python`). |
 | `home` | String | `null` | Explicit directory path to an existing Python installation on the agent. |
-| `venv` | boolean | `false` | When true, automatically activates a project-local virtual environment (`.venv`). |
-| `venvDir` | String | `".venv"` | Relative workspace path to the virtualenv directory. |
+| `clear` | boolean | `false` | When true with `venv`, recreates the virtual environment from scratch. |
+| `systemSitePackages` | boolean | `false` | When true with `venv`, gives the virtual environment access to system site-packages. |
 | `mirrorUrl`| String | `null` | Base URL of internal corporate mirror hosting python-build-standalone archives. |
 | `cuda` | boolean | `false` | When true, probes and injects CUDA GPU environment variables (`CUDA_HOME`, `PATH`, `LD_LIBRARY_PATH`). |
 | `cudaHome` | String | `null` | Explicit path override for CUDA toolkit on the agent. |
-
-### `withVirtualenv`
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `python` | String | `null` | Python version (e.g. `3.12.15`) or tool name to use as virtualenv base interpreter. |
-| `venvDir` | String | `".venv"` | Relative workspace directory for virtualenv. |
-| `requirements` | String | `null` | Path to `requirements.txt` file to automatically install upon creation. |
-| `system` | boolean | `false` | When true, uses system Python interpreter to build the virtual environment. |
-| `clear` | boolean | `false` | When true, recreates the virtual environment from scratch. |
-| `systemSitePackages` | boolean | `false` | Give the virtual environment access to the system site-packages. |
 
 ---
 
 ## Global Tool Configuration (Jenkins UI)
 
 1. Navigate to **Manage Jenkins** &rarr; **Tools**.
-2. Scroll to **Python**.
+2. Scroll to **Python (Standalone)**.
 3. Click **Add Python**.
 4. Configure name (e.g., `Python 3.12`).
 5. Select **Install automatically** &rarr; **Install Standalone Python from Astral-sh**.
 6. Select your desired Python version from the dropdown list.
 7. Click **Save**.
 
-The tool will be installed automatically on the agent the first time a build requests it.
+---
+
+## Air-Gapped & Custom Catalog Configuration
+
+For air-gapped Jenkins controllers without outbound internet access:
+- **Option 1**: Place `python-versions.json` directly into `$JENKINS_HOME/python-versions.json`.
+- **Option 2**: Launch Jenkins with the system property:
+  ```
+  -Dio.jenkins.plugins.python.versionsFile=/var/jenkins_home/my-custom-versions.json
+  ```
+- **Option 3**: Configure an internal URL mirror for dynamic catalog updates:
+  ```
+  -Dio.jenkins.plugins.python.versionsUrl=https://internal-artifactory.corp/python/versions.json
+  ```
 
 ---
 
-## Keeping Python Versions Up to Date
+## Updating Upstream Python Versions
 
-The plugin ships with a version catalog embedded at `src/main/resources/io/jenkins/plugins/python/versions.json`.
+The plugin automatically checks and caches new releases from `astral-sh/python-build-standalone`. Maintainers can also update the bundled catalog:
 
-To fetch new upstream Python releases and update the catalog:
-
-### Using Python:
 ```bash
 python scripts/update-python-versions.py
 ```
 
-### Using PowerShell:
-```powershell
-.\\scripts\\update-python-versions.ps1
-```
-
-Options:
-- `--limit <N>`: Maximum number of upstream releases to scan (default: 30).
-- `--token <GITHUB_TOKEN>`: GitHub personal access token to prevent API rate limiting.
-
 ---
 
-## Building and Testing
+## License
 
-### Build with Maven:
-```powershell
-.\\scripts\\build-plugin.ps1 python-tool-jenkins-plugin package -UseContainer
-```
-
-Artifact output:
-`target/python-tool.hpi`
+This plugin is licensed under the [MIT License](LICENSE.md).

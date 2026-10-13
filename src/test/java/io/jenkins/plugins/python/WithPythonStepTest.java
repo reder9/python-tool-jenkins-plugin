@@ -119,7 +119,7 @@ class WithPythonStepTest {
         job.setDefinition(new CpsFlowDefinition(
                 "node {\n" +
                 "    writeFile file: '.venv/pyvenv.cfg', text: 'home = /mock\\nversion = 3.12.0\\n'\n" +
-                "    withVirtualenv(tool: 'MockToolForWithVenv') {\n" +
+                "    withPython(tool: 'MockToolForWithVenv', venv: '.venv') {\n" +
                 "        echo 'WITH_VENV_TARGET=' + env.VIRTUAL_ENV\n" +
                 "        echo 'WITH_VENV_PYTHONHOME=' + (env.PYTHONHOME ?: 'UNSET')\n" +
                 "    }\n" +
