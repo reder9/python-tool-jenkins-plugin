@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Step execution handler for withPython and withVirtualenv pipeline steps.
+ * Step execution handler for the withPython pipeline step.
  */
 public class WithPythonStepExecution extends StepExecution implements Serializable {
 
