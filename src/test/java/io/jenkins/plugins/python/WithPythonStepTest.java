@@ -108,14 +108,14 @@ class WithPythonStepTest {
     }
 
     @Test
-    void testWithVirtualenvStep(JenkinsRule jenkins) throws Exception {
+    void testWithPythonVirtualenvExecution(JenkinsRule jenkins) throws Exception {
         File dummyHome = jenkins.createTmpDir();
         new File(dummyHome, "bin").mkdirs();
 
         PythonInstallation tool = new PythonInstallation("MockToolForWithVenv", dummyHome.getAbsolutePath(), Collections.emptyList());
         jenkins.jenkins.getDescriptorByType(PythonInstallation.DescriptorImpl.class).setInstallations(tool);
 
-        WorkflowJob job = jenkins.createProject(WorkflowJob.class, "test-with-virtualenv-step");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class, "test-with-python-virtualenv-execution");
         job.setDefinition(new CpsFlowDefinition(
                 "node {\n" +
                 "    writeFile file: '.venv/pyvenv.cfg', text: 'home = /mock\\nversion = 3.12.0\\n'\n" +
